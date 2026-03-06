@@ -14,6 +14,17 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/core/node_modules ./packages/core/node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY . .
+# Ensure public dir exists (Next.js standalone expects it)
+RUN mkdir -p /app/apps/web/public
+# NEXT_PUBLIC vars must be present at build time for Next.js inlining
+ARG NEXT_PUBLIC_ELEVENLABS_API_KEY
+ARG NEXT_PUBLIC_ELEVENLABS_AGENT_ID
+ARG NEXT_PUBLIC_ELEVENLABS_VOICE_ID
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_ELEVENLABS_API_KEY=$NEXT_PUBLIC_ELEVENLABS_API_KEY
+ENV NEXT_PUBLIC_ELEVENLABS_AGENT_ID=$NEXT_PUBLIC_ELEVENLABS_AGENT_ID
+ENV NEXT_PUBLIC_ELEVENLABS_VOICE_ID=$NEXT_PUBLIC_ELEVENLABS_VOICE_ID
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm turbo build --filter=web
 
