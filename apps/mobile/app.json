@@ -1,0 +1,57 @@
+{
+  "expo": {
+    "name": "Speech.FM",
+    "slug": "speech-fm",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "speechfm",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "fm.speech.mobile",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Speech.FM needs microphone access for voice conversations"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "fm.speech.mobile",
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Speech.FM needs microphone access for voice conversations"
+        }
+      ],
+      "expo-font",
+      "expo-splash-screen"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
+    }
+  }
+}
