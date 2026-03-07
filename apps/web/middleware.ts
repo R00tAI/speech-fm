@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   '/login(.*)',
   '/register(.*)',
   '/api/voice31/(.*)',
+  '/api/elevenlabs/(.*)',
 ])
 
 export default clerkMiddleware(async (auth, request) => {

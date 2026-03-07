@@ -23,3 +23,19 @@ export async function trackUnitUsage(usage: UsageUnit): Promise<void> {
 export async function getUserUsage(userId: string): Promise<number> {
   return 0;
 }
+
+export interface CharacterUsage {
+  userId: string;
+  provider: string;
+  model: string;
+  service: string;
+  endpoint: string;
+  characters: number;
+  metadata?: Record<string, unknown>;
+}
+
+export async function trackCharacterUsage(usage: CharacterUsage): Promise<void> {
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[cost-tracking] ${usage.provider}/${usage.service}: ${usage.characters} chars (user: ${usage.userId})`);
+  }
+}
