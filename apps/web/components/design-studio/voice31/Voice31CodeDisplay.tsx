@@ -125,10 +125,11 @@ export const Voice31CodeDisplay: React.FC<Voice31CodeDisplayProps> = ({
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'unsafe-inline'; img-src data: blob: https:; font-src data:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://unpkg.com; style-src 'unsafe-inline'; img-src data: blob: https:; font-src data:; connect-src https:;">
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/three@0.170.0/build/three.min.js"></script>
   <style>
     * {
       margin: 0;
@@ -180,6 +181,7 @@ export const Voice31CodeDisplay: React.FC<Voice31CodeDisplayProps> = ({
   </script>
   <script type="text/babel" data-presets="typescript,react">
     const { useState, useEffect, useRef, useCallback, useMemo, Fragment } = React;
+    const THREE = window.THREE;
 
     const lerp = (a, b, t) => a + (b - a) * t;
     const clamp = (val, min, max) => Math.max(min, Math.min(max, val));

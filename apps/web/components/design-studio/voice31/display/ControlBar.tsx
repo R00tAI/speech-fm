@@ -2,8 +2,6 @@
 
 import React from 'react';
 import {
-  GearSix,
-  Notepad,
   Sword,
   Book,
   Backpack,
@@ -23,9 +21,6 @@ import { useVoice31RPG } from '../Voice31RPGProvider';
 
 export const ControlBar: React.FC = () => {
   const phosphorColor = useVoice31Store((s) => s.phosphorColor);
-  const memoryState = useVoice31Store((s) => s.memoryState);
-  const toggleSettingsPanel = useVoice31Store((s) => s.toggleSettingsPanel);
-  const toggleEditor = useVoice31Store((s) => s.toggleEditor);
 
   const rpgModeActive = useVoice31RPGStore((s) => s.rpgModeActive);
   const currentSaveFile = useVoice31RPGStore((s) => s.currentSaveFile);
@@ -136,35 +131,6 @@ export const ControlBar: React.FC = () => {
         </>
       )}
 
-      {/* Notes Button */}
-      <button
-        onClick={toggleEditor}
-        className="p-2 rounded-lg transition-all hover:scale-110"
-        style={{
-          backgroundColor: memoryState.editorVisible ? `${phosphorHex}30` : `${phosphorHex}15`,
-          border: `1px solid ${memoryState.editorVisible ? phosphorHex : `${phosphorHex}40`}`,
-          color: phosphorHex,
-          boxShadow: memoryState.editorVisible ? `0 0 15px ${phosphorHex}40` : `0 0 10px ${phosphorHex}20`,
-        }}
-        title="Notes & Context"
-      >
-        <Notepad size={20} weight="bold" />
-      </button>
-
-      {/* Settings Button */}
-      <button
-        onClick={toggleSettingsPanel}
-        className="p-2 rounded-lg transition-all hover:scale-110"
-        style={{
-          backgroundColor: `${phosphorHex}15`,
-          border: `1px solid ${phosphorHex}40`,
-          color: phosphorHex,
-          boxShadow: `0 0 10px ${phosphorHex}20`,
-        }}
-        title="Assistant Settings"
-      >
-        <GearSix size={20} weight="bold" />
-      </button>
     </div>
   );
 };

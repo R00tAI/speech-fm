@@ -9,3 +9,5 @@ export { RPGVisualLayers } from './RPGVisualLayers';
 export { ContentRenderer } from './ContentRenderer';
 export { ControlBar } from './ControlBar';
 export { AmbientBackgroundLayer } from './AmbientBackgroundLayer';
+export { TextChatInput } from './TextChatInput';
+export { FallbackAlert } from './FallbackAlert';

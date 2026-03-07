@@ -2,7 +2,9 @@
 
 import {
   BookOpen,
+  ChatText,
   ClockCounterClockwise,
+  CloudArrowUp,
   GearSix,
   Globe,
   Notepad,
@@ -15,6 +17,7 @@ import { HistoryPanel } from "./sidebar/HistoryPanel";
 import { LibraryPanel } from "./sidebar/LibraryPanel";
 import { SidebarSettingsPanel } from "./sidebar/SidebarSettingsPanel";
 import { StatusPanel } from "./sidebar/StatusPanel";
+import { UploadPanel } from "./sidebar/UploadPanel";
 import { useVoice31Store } from "./Voice31Store";
 
 // =============================================================================
@@ -23,10 +26,12 @@ import { useVoice31Store } from "./Voice31Store";
 
 type SidebarTab =
   | "status"
+  | "uploads"
   | "library"
   | "notes"
   | "history"
   | "browser"
+  | "chat"
   | "settings";
 
 const COLORS: Record<string, string> = {
@@ -42,15 +47,18 @@ const TAB_CONFIG: Record<
   { icon: React.ElementType; label: string }
 > = {
   status: { icon: Plugs, label: "Status" },
+  uploads: { icon: CloudArrowUp, label: "Uploads" },
   library: { icon: BookOpen, label: "Library" },
   notes: { icon: Notepad, label: "Notes" },
   history: { icon: ClockCounterClockwise, label: "History" },
   browser: { icon: Globe, label: "Browser" },
+  chat: { icon: ChatText, label: "Chat" },
   settings: { icon: GearSix, label: "Settings" },
 };
 
-const TAB_ORDER: SidebarTab[] = [
+const TAB_ORDER_BASE: SidebarTab[] = [
   "status",
+  "uploads",
   "library",
   "notes",
   "history",
@@ -147,6 +155,89 @@ const NotesPanel: React.FC<{ hex: string }> = ({ hex }) => {
 };
 
 // =============================================================================
+// CHAT PANEL (inline — chat history for text mode)
+// =============================================================================
+
+const ChatPanel: React.FC<{ hex: string }> = ({ hex }) => {
+  const chatMessages = useVoice31Store((s) => s.chatMessages);
+  const isProcessing = useVoice31Store((s) => s.isChatProcessing);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [chatMessages.length]);
+
+  return (
+    <div className="flex flex-col h-full -my-3 -mx-3">
+      <div
+        className="text-[9px] uppercase tracking-wider font-mono px-3 pt-3 pb-1"
+        style={{ color: `${hex}30` }}
+      >
+        {chatMessages.length} message{chatMessages.length !== 1 ? "s" : ""}
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-3 pb-3 space-y-2"
+        style={{ scrollbarWidth: "thin", scrollbarColor: `${hex}20 transparent` }}
+      >
+        {chatMessages.length === 0 && (
+          <div
+            className="text-[10px] font-mono text-center py-6"
+            style={{ color: `${hex}40` }}
+          >
+            No messages yet. Type below to chat.
+          </div>
+        )}
+        {chatMessages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`text-[11px] font-mono leading-relaxed px-2 py-1.5 rounded ${
+              msg.role === "user" ? "ml-4" : "mr-4"
+            }`}
+            style={{
+              backgroundColor:
+                msg.role === "user" ? `${hex}10` : `${hex}08`,
+              borderLeft:
+                msg.role === "assistant" ? `2px solid ${hex}40` : "none",
+              borderRight:
+                msg.role === "user" ? `2px solid ${hex}20` : "none",
+              color: msg.role === "user" ? `${hex}90` : hex,
+            }}
+          >
+            <div
+              className="text-[8px] uppercase tracking-wider mb-0.5"
+              style={{ color: `${hex}40` }}
+            >
+              {msg.role === "user" ? "you" : "assistant"}
+            </div>
+            {msg.content}
+            {msg.toolCalls && msg.toolCalls.length > 0 && (
+              <div
+                className="mt-1 text-[9px]"
+                style={{ color: `${hex}40` }}
+              >
+                [{msg.toolCalls.map((t) => t.name).join(", ")}]
+              </div>
+            )}
+          </div>
+        ))}
+        {isProcessing && (
+          <div
+            className="text-[10px] font-mono animate-pulse px-2 py-1"
+            style={{ color: `${hex}60` }}
+          >
+            thinking...
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// =============================================================================
 // MAIN SIDE PANEL
 // =============================================================================
 
@@ -154,6 +245,7 @@ export const Voice31SidePanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SidebarTab>("status");
   const phosphorColor = useVoice31Store((s) => s.phosphorColor);
   const browserAutomation = useVoice31Store((s) => s.browserAutomation);
+  const interactionMode = useVoice31Store((s) => s.interactionMode);
   const settingsPanelVisible = useVoice31Store(
     (s) => s.assistantSettings.settingsPanelVisible,
   );
@@ -165,6 +257,12 @@ export const Voice31SidePanel: React.FC = () => {
 
   // Show indicator dot on browser tab when active
   const hasBrowserActivity = browserAutomation.active;
+
+  // Dynamic tab order: include chat tab when in text/fallback mode
+  const isTextMode = interactionMode === "text" || interactionMode === "fallback";
+  const TAB_ORDER: SidebarTab[] = isTextMode
+    ? [...TAB_ORDER_BASE.slice(0, -1), "chat", "settings"]
+    : TAB_ORDER_BASE;
 
   // Sync settings panel visibility with sidebar tab
   useEffect(() => {
@@ -238,10 +336,12 @@ export const Voice31SidePanel: React.FC = () => {
         }}
       >
         {activeTab === "status" && <StatusPanel hex={hex} />}
+        {activeTab === "uploads" && <UploadPanel hex={hex} />}
         {activeTab === "library" && <LibraryPanel hex={hex} />}
         {activeTab === "notes" && <NotesPanel hex={hex} />}
         {activeTab === "history" && <HistoryPanel hex={hex} />}
         {activeTab === "browser" && <BrowserPanel hex={hex} />}
+        {activeTab === "chat" && <ChatPanel hex={hex} />}
         {activeTab === "settings" && <SidebarSettingsPanel hex={hex} />}
       </div>
 

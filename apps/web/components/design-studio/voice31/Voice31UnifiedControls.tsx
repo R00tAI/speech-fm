@@ -154,8 +154,13 @@ const ElevenLabsControls: React.FC = () => {
     );
   }
 
-  const { startConversation, endConversation, micMuted, setMicMuted } =
-    useVoice31ElevenLabs();
+  const elCtx = useVoice31ElevenLabs();
+  if (!elCtx) {
+    return (
+      <div className="text-red-500 text-xs">ElevenLabs provider not active</div>
+    );
+  }
+  const { startConversation, endConversation, micMuted, setMicMuted } = elCtx;
   const isConnected = useVoice31Store((s) => s.isConnected);
   const isListening = useVoice31Store((s) => s.isListening);
   const isSpeaking = useVoice31Store((s) => s.isSpeaking);

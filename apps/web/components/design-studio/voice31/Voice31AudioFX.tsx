@@ -338,7 +338,7 @@ export const Voice31AudioFX: React.FC<{
   const showContinueRPG = rpgModeActive && !!currentSaveFile && !voiceConnected && !isConnecting;
 
   const handleConnect = useCallback(async () => {
-    if (voiceConnected || isConnecting) return;
+    if (voiceConnected || isConnecting || !elevenLabs) return;
     setIsConnecting(true);
 
     try {
@@ -351,7 +351,7 @@ export const Voice31AudioFX: React.FC<{
   }, [elevenLabs, voiceConnected, isConnecting]);
 
   const handleContinueRPG = useCallback(async () => {
-    if (voiceConnected || isConnecting) return;
+    if (voiceConnected || isConnecting || !elevenLabs) return;
     setIsConnecting(true);
 
     try {
@@ -364,6 +364,7 @@ export const Voice31AudioFX: React.FC<{
   }, [elevenLabs, voiceConnected, isConnecting]);
 
   const handleDisconnect = useCallback(async () => {
+    if (!elevenLabs) return;
     try {
       await elevenLabs.endConversation();
     } catch (error) {

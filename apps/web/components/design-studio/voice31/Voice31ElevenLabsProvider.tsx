@@ -59,13 +59,7 @@ const Voice31ElevenLabsContext =
   createContext<Voice31ElevenLabsContextType | null>(null);
 
 export const useVoice31ElevenLabs = () => {
-  const ctx = useContext(Voice31ElevenLabsContext);
-  if (!ctx) {
-    throw new Error(
-      "useVoice31ElevenLabs must be used within Voice31ElevenLabsProvider",
-    );
-  }
-  return ctx;
+  return useContext(Voice31ElevenLabsContext);
 };
 
 // =============================================================================
@@ -705,6 +699,33 @@ const buildClientTools = () => {
           ),
         ),
       ),
+
+    // === UPLOAD + 3D CANVAS TOOLS ===
+    get_upload_context: async () =>
+      safeTool("get_upload_context", async () =>
+        JSON.stringify(
+          await toolHandler.handleToolCall("get_upload_context", {}),
+        ),
+      ),
+    process_upload: async (params: {
+      file_id: string;
+      pipeline?: string;
+    }) =>
+      safeTool("process_upload", async () =>
+        JSON.stringify(
+          await toolHandler.handleToolCall("process_upload", params),
+        ),
+      ),
+    build_3d_canvas: async (params: {
+      scene_name: string;
+      layers: string;
+      camera_preset?: string;
+    }) =>
+      safeTool("build_3d_canvas", async () =>
+        JSON.stringify(
+          await toolHandler.handleToolCall("build_3d_canvas", params),
+        ),
+      ),
   };
 
   // Wrap every tool with the enablement gate
@@ -722,11 +743,12 @@ const buildClientTools = () => {
 interface Voice31ElevenLabsProviderProps {
   children: React.ReactNode;
   agentId?: string;
+  onFallback?: (reason: string) => void;
 }
 
 export const Voice31ElevenLabsProvider: React.FC<
   Voice31ElevenLabsProviderProps
-> = ({ children, agentId = ELEVENLABS_AGENT_ID }) => {
+> = ({ children, agentId = ELEVENLABS_AGENT_ID, onFallback }) => {
   const setConnected = useVoice31Store((s) => s.setConnected);
   const setListening = useVoice31Store((s) => s.setListening);
   const setSpeaking = useVoice31Store((s) => s.setSpeaking);
@@ -1197,8 +1219,13 @@ export const Voice31ElevenLabsProvider: React.FC<
             "[Voice31-EL] ✅ Session started, conversationId:",
             conversationId,
           );
+        } else if (signedUrlResponse.status === 402) {
+          // Credits exhausted — trigger fallback to text mode
+          console.warn("[Voice31-EL] ⚠️ 402 — credits exhausted, falling back to text mode");
+          onFallback?.("credits_exhausted");
+          return;
         } else {
-          // Fallback to direct agent ID (for public agents)
+          // Try direct agent ID fallback
           const errorText = await signedUrlResponse.text();
           console.log(
             "[Voice31-EL] ⚠️ Signed URL failed:",
@@ -1206,14 +1233,20 @@ export const Voice31ElevenLabsProvider: React.FC<
             errorText,
           );
           console.log("[Voice31-EL] 📞 Trying direct agentId...");
-          const conversationId = await conversation.startSession({
-            agentId,
-            ...(sessionOverrides ? { overrides: sessionOverrides } : {}),
-          });
-          console.log(
-            "[Voice31-EL] ✅ Session started with agentId, conversationId:",
-            conversationId,
-          );
+          try {
+            const conversationId = await conversation.startSession({
+              agentId,
+              ...(sessionOverrides ? { overrides: sessionOverrides } : {}),
+            });
+            console.log(
+              "[Voice31-EL] ✅ Session started with agentId, conversationId:",
+              conversationId,
+            );
+          } catch (agentError) {
+            console.error("[Voice31-EL] ❌ Direct agentId also failed:", agentError);
+            onFallback?.("service_unavailable");
+            return;
+          }
         }
       } catch (error) {
         console.error("[Voice31-EL] ❌ Failed to start conversation:", error);
@@ -1221,6 +1254,7 @@ export const Voice31ElevenLabsProvider: React.FC<
           console.error("[Voice31-EL] Error message:", error.message);
           console.error("[Voice31-EL] Error stack:", error.stack);
         }
+        onFallback?.("api_error");
       }
     },
     [agentId, conversation],

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useVoice31Store } from '../Voice31Store';
 import { useStorytellingStore } from '../storytelling/StorytellingStore';
 import { StorytellingOrchestrator } from '../storytelling';
@@ -42,6 +42,7 @@ export const ContentRenderer: React.FC<ContentRendererProps> = ({
   const diagramState = useVoice31Store((s) => s.diagramState);
   const codeDisplayState = useVoice31Store((s) => s.codeDisplayState);
   const weatherDisplay = useVoice31Store((s) => s.weatherDisplay);
+  const uploads = useVoice31Store((s) => s.uploads);
 
   const phosphorHex = {
     green: '#33ff33',
@@ -309,6 +310,68 @@ export const ContentRenderer: React.FC<ContentRendererProps> = ({
     );
   }
 
-  // Default: No explicit content
+  // Default: No explicit content — but check for recent upload notifications
+  const recentUpload = uploads.length > 0 ? uploads[0] : null;
+  const isRecent = recentUpload && Date.now() - recentUpload.uploadedAt < 15000;
+
+  if (isRecent && recentUpload) {
+    return (
+      <UploadNotification upload={recentUpload} hex={phosphorHex} />
+    );
+  }
+
   return null;
+};
+
+/** Brief CRT-styled notification for recent uploads */
+const UploadNotification: React.FC<{
+  upload: { filename: string; contentType: string | null; keywords: string[] };
+  hex: string;
+}> = ({ upload, hex }) => {
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setVisible(false), 12000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!visible) return null;
+
+  const badge = upload.contentType?.slice(0, 4).toUpperCase() || '???';
+
+  return (
+    <div
+      className="absolute top-4 right-4 z-50 font-mono rounded px-3 py-2 max-w-[200px]"
+      style={{
+        background: '#0a0a0a',
+        border: `1px solid ${hex}30`,
+        boxShadow: `0 0 12px ${hex}10`,
+        animation: 'fadeIn 0.3s ease-out',
+      }}
+    >
+      <div className="text-[8px] uppercase tracking-[0.2em] mb-1" style={{ color: `${hex}60` }}>
+        Upload Analyzed
+      </div>
+      <div className="text-[9px] truncate" style={{ color: `${hex}90` }}>
+        {upload.filename}
+      </div>
+      <div className="flex items-center gap-1 mt-1">
+        <span
+          className="text-[7px] px-1 rounded uppercase"
+          style={{ color: '#000', background: hex }}
+        >
+          {badge}
+        </span>
+        {upload.keywords.slice(0, 3).map((kw, i) => (
+          <span
+            key={i}
+            className="text-[7px] px-0.5"
+            style={{ color: `${hex}40` }}
+          >
+            {kw}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
 };

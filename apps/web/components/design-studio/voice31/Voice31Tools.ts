@@ -1889,6 +1889,210 @@ Make it visually stunning with the CRT/retro aesthetic. Include animations, glow
           break;
         }
 
+        // =====================================================================
+        // UPLOAD + 3D CANVAS TOOLS
+        // =====================================================================
+
+        case 'get_upload_context': {
+          const uploads = store.uploads;
+          if (uploads.length === 0) {
+            result = {
+              success: true,
+              message: 'No files have been uploaded yet. The user can upload images or PDFs via the Uploads tab in the sidebar.',
+              context: { uploads: [] },
+            };
+          } else {
+            const summary = uploads.map((u: any) => ({
+              id: u.id,
+              filename: u.filename,
+              contentType: u.contentType,
+              analysis: u.analysis,
+              keywords: u.keywords,
+              hasProcessed: !!u.processed,
+            }));
+            result = {
+              success: true,
+              message: `${uploads.length} file(s) uploaded:\n${summary.map((s: any) => `- ${s.filename} [${s.contentType || 'unknown'}]: ${s.analysis || 'No analysis'}`).join('\n')}`,
+              context: { uploads: summary },
+            };
+          }
+          break;
+        }
+
+        case 'process_upload': {
+          const fileId = args.file_id as string;
+          const pipeline = (args.pipeline as string) || 'auto';
+
+          if (!fileId) {
+            result = { success: false, message: 'file_id is required' };
+            break;
+          }
+
+          const upload = store.uploads.find((u: any) => u.id === fileId);
+          if (!upload) {
+            result = { success: false, message: `Upload not found: ${fileId}` };
+            break;
+          }
+
+          console.log('[Voice31] Processing upload:', fileId, 'pipeline:', pipeline);
+
+          try {
+            const res = await durableFetch('/api/voice31/smart-pipeline', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                imageUrl: upload.blobUrl,
+                contentType: upload.contentType || '',
+                pipeline,
+              }),
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              // Update upload in store with processed results
+              store.updateUpload(fileId, {
+                processed: {
+                  highResUrl: data.highResUrl,
+                  depthMapUrl: data.depthMapUrl,
+                  meshUrl: data.meshUrl,
+                  pipeline: data.pipeline,
+                },
+              });
+
+              const parts = [];
+              if (data.highResUrl) parts.push('upscaled image');
+              if (data.depthMapUrl) parts.push('depth map');
+              if (data.meshUrl) parts.push('3D mesh');
+
+              result = {
+                success: true,
+                message: `Pipeline "${data.pipeline}" complete for ${upload.filename}. Generated: ${parts.join(', ')}.`,
+                context: {
+                  pipeline: data.pipeline,
+                  highResUrl: data.highResUrl,
+                  depthMapUrl: data.depthMapUrl,
+                  meshUrl: data.meshUrl,
+                },
+              };
+            } else {
+              const err = await res.json().catch(() => ({ error: 'Pipeline failed' }));
+              result = { success: false, message: `Pipeline failed: ${err.error || 'unknown error'}` };
+            }
+          } catch (error) {
+            console.error('[Voice31] Pipeline error:', error);
+            result = { success: false, message: 'Smart pipeline failed — network error' };
+          }
+          break;
+        }
+
+        case 'build_3d_canvas': {
+          const sceneName = args.scene_name as string;
+          const layersJson = args.layers as string;
+          const cameraPreset = (args.camera_preset as string) || 'orbit';
+
+          if (!sceneName || !layersJson) {
+            result = { success: false, message: 'scene_name and layers are required' };
+            break;
+          }
+
+          let layerDefs: Array<{ file_id: string; role: string; depth: number }>;
+          try {
+            layerDefs = typeof layersJson === 'string' ? JSON.parse(layersJson) : layersJson;
+          } catch {
+            result = { success: false, message: 'Invalid layers JSON' };
+            break;
+          }
+
+          // Build canvas layers from processed uploads
+          const canvasLayers: any[] = [];
+          const layerDescriptions: string[] = [];
+
+          for (const layerDef of layerDefs) {
+            const upload = store.uploads.find((u: any) => u.id === layerDef.file_id);
+            if (!upload) continue;
+
+            const processed = upload.processed;
+            const imageUrl = processed?.highResUrl || upload.blobUrl;
+            const depthUrl = processed?.depthMapUrl;
+
+            canvasLayers.push({
+              id: `layer_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+              type: depthUrl ? 'depth' : 'image',
+              sourceUrl: upload.blobUrl,
+              processedUrl: imageUrl,
+              depthMapUrl: depthUrl,
+              meshUrl: processed?.meshUrl,
+              position: {
+                x: 0,
+                y: 0,
+                z: layerDef.depth ?? 0.5,
+              },
+              scale: 1,
+              opacity: 1,
+              label: `${layerDef.role}: ${upload.filename}`,
+            });
+
+            layerDescriptions.push(
+              `${layerDef.role} "${upload.filename}" at depth ${layerDef.depth}${depthUrl ? ' (has depth map)' : ''}${processed?.meshUrl ? ' (has 3D mesh)' : ''}, url: ${imageUrl}${depthUrl ? `, depthMap: ${depthUrl}` : ''}`
+            );
+          }
+
+          // Create/update canvas scene
+          const canvasScene = {
+            id: `canvas_${Date.now()}`,
+            name: sceneName,
+            layers: canvasLayers,
+            camera: { fov: 60, position: [0, 0, 5] as [number, number, number] },
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          store.setActiveCanvas(canvasScene);
+
+          // Save as artifact
+          store.saveArtifact({
+            type: 'canvas_3d' as any,
+            title: sceneName,
+            content: canvasScene,
+            preview: `3D canvas with ${canvasLayers.length} layers`,
+            tags: ['3d', 'canvas', ...canvasLayers.flatMap((l: any) => l.label ? [l.label.split(':')[0].trim()] : [])],
+            source: 'voice31',
+            pinned: false,
+          });
+
+          // Generate Three.js visualization via code gen
+          const cameraAnimations: Record<string, string> = {
+            orbit: 'camera.position.x = Math.sin(time * 0.3) * 3; camera.position.z = Math.cos(time * 0.3) * 5; camera.lookAt(0, 0, 0);',
+            push_in: 'camera.position.z = 8 - time * 0.3; if (camera.position.z < 2) camera.position.z = 2;',
+            static: '// Static camera',
+            drift: 'camera.position.x = Math.sin(time * 0.15) * 1.5; camera.position.y = Math.cos(time * 0.2) * 0.5;',
+          };
+
+          const codeGenPrompt = `Create a 3D scene viewer called "${sceneName}" with these layers:\n${layerDescriptions.join('\n')}\n\nUse Three.js (available as window.THREE). Create depth-displaced planes for each layer using PlaneGeometry + ShaderMaterial. Load textures with THREE.TextureLoader. Camera animation: ${cameraAnimations[cameraPreset] || cameraAnimations.orbit}. Dark background (#0a0a0a), add subtle atmospheric fog. Phosphor accent colors for any UI elements.`;
+
+          // Trigger code gen (fire-and-forget — tool handler doesn't need to wait)
+          try {
+            const toolRef = createVoice31ToolHandler();
+            toolRef.handleToolCall('generate_code_display', {
+              prompt: codeGenPrompt,
+              fullscreen: false,
+            });
+          } catch (e) {
+            console.warn('[Voice31] Canvas code gen failed (non-fatal):', e);
+          }
+
+          result = {
+            success: true,
+            message: `3D canvas "${sceneName}" created with ${canvasLayers.length} layers. Generating Three.js visualization.`,
+            context: {
+              sceneId: canvasScene.id,
+              sceneName,
+              layerCount: canvasLayers.length,
+              cameraPreset,
+            },
+          };
+          break;
+        }
+
         default:
           console.warn('[Voice31] Unknown tool:', name);
           result = { success: false, message: `Unknown tool: ${name}` };
@@ -1922,6 +2126,7 @@ Make it visually stunning with the CRT/retro aesthetic. Include animations, glow
             extract_web_data: { type: 'browser_result', titleFn: (a) => `Extract: ${(a.what || '').slice(0, 60)}` },
             create_note: { type: 'note', titleFn: (a) => a.title || 'Note' },
             start_visual_story: { type: 'story_session', titleFn: (a) => `Story: ${(a.question || '').slice(0, 60)}` },
+            build_3d_canvas: { type: 'canvas_3d', titleFn: (a) => `Canvas: ${(a.scene_name || '').slice(0, 60)}` },
           };
 
           const mapping = artifactMapping[name];

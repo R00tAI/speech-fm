@@ -24,8 +24,10 @@ import {
   ContentRenderer,
   ControlBar,
   CRTScreenBoundary,
+  FallbackAlert,
   getPhosphorColors,
   RPGVisualLayers,
+  TextChatInput,
 } from "./display";
 // Visual Intelligence
 import { useVisualIntelligence } from "./hooks/useVisualIntelligence";
@@ -45,6 +47,8 @@ import { Voice31SceneInspector } from "./Voice31SceneInspector";
 import { Voice31Settings } from "./Voice31Settings";
 import { Voice31SidePanel } from "./Voice31SidePanel";
 import { useVoice31Store } from "./Voice31Store";
+import { useVoice31Text } from "./Voice31TextProvider";
+import { useVoice31Backend } from "./Voice31UnifiedProvider";
 
 type ContentPosition = "left" | "right" | "center" | "top" | "bottom" | null;
 
@@ -126,6 +130,13 @@ const Voice31DisplayInner: React.FC = () => {
   const aspectRatioMode = useVoice31Store(
     (s) => s.assistantSettings.currentConfig.aspectRatio ?? "16:9",
   );
+
+  // Text chat / fallback mode
+  const interactionMode = useVoice31Store((s) => s.interactionMode);
+  const fallbackAlertVisible = useVoice31Store((s) => s.fallbackAlertVisible);
+  const { backend } = useVoice31Backend();
+  const isTextMode = backend === "text";
+  const textCtx = useVoice31Text(); // null when not inside TextProvider
 
   // Visual Intelligence hook — monitors conversation and triggers ambient backgrounds
   useVisualIntelligence();
@@ -485,6 +496,14 @@ const Voice31DisplayInner: React.FC = () => {
 
             {/* Processing indicator — visible feedback when assistant is thinking */}
             {isThinking && <ThinkingIndicator phosphorColor={phosphorColor} />}
+
+            {/* Text chat input (text/fallback mode) */}
+            {isTextMode && textCtx && (
+              <TextChatInput onSend={textCtx.sendMessage} phosphorColor={phosphorColor} />
+            )}
+
+            {/* Fallback alert overlay */}
+            {fallbackAlertVisible && <FallbackAlert />}
           </CRTScreenBoundary>
         </div>
 
@@ -851,6 +870,14 @@ const Voice31DisplayInner: React.FC = () => {
 
               {/* Processing indicator — visible feedback when assistant is thinking */}
               {isThinking && <ThinkingIndicator phosphorColor={phosphorColor} />}
+
+              {/* Text chat input (text/fallback mode) */}
+              {isTextMode && textCtx && (
+                <TextChatInput onSend={textCtx.sendMessage} phosphorColor={phosphorColor} />
+              )}
+
+              {/* Fallback alert overlay */}
+              {fallbackAlertVisible && <FallbackAlert />}
             </CRTScreenBoundary>
 
             {/* Migration effect */}

@@ -21,6 +21,26 @@ export type { AssistantActivity } from "@/lib/speech-fm/action-library/types";
 export type PhosphorColor = "green" | "red" | "blue" | "amber" | "white";
 
 // =============================================================================
+// TEXT CHAT / FALLBACK TYPES
+// =============================================================================
+
+export type InteractionMode = "voice" | "text" | "fallback";
+export type FallbackReason =
+  | "credits_exhausted"
+  | "service_unavailable"
+  | "api_error"
+  | "user_choice"
+  | null;
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: number;
+  toolCalls?: Array<{ name: string; input: Record<string, unknown> }>;
+}
+
+// =============================================================================
 // VISUAL INTELLIGENCE TYPES
 // =============================================================================
 
@@ -279,7 +299,53 @@ export type ArtifactType =
   | "rpg_character"
   | "story_session"
   | "browser_result"
+  | "canvas_3d"
   | "file";
+
+// =============================================================================
+// UPLOAD + 3D CANVAS TYPES
+// =============================================================================
+
+export interface UploadedFile {
+  id: string;
+  filename: string;
+  blobUrl: string;
+  fileType: "image" | "pdf";
+  mimeType: string;
+  analysis: string | null;
+  contentType: string | null;
+  keywords: string[];
+  uploadedAt: number;
+  /** Populated after smart pipeline processing */
+  processed?: {
+    highResUrl?: string;
+    depthMapUrl?: string;
+    meshUrl?: string;
+    pipeline?: string;
+  };
+}
+
+export interface CanvasLayer {
+  id: string;
+  type: "image" | "depth" | "3d_mesh" | "background";
+  sourceUrl: string;
+  processedUrl: string;
+  depthMapUrl?: string;
+  meshUrl?: string;
+  position: { x: number; y: number; z: number };
+  scale: number;
+  opacity: number;
+  label: string;
+}
+
+export interface CanvasScene {
+  id: string;
+  name: string;
+  layers: CanvasLayer[];
+  camera: { fov: number; position: [number, number, number] };
+  createdAt: number;
+  updatedAt: number;
+}
 
 export interface Artifact {
   id: string;
@@ -429,7 +495,7 @@ export type AssistantLocation =
 
 export type ScreenType = "crt" | "modern" | "hologram" | "minimal" | "terminal";
 export type AssistantVisual = "binary" | "avatar" | "waveform" | "orb" | "none";
-export type VoiceBackendType = "elevenlabs" | "hume";
+export type VoiceBackendType = "elevenlabs" | "hume" | "text";
 
 export interface VoiceConfig {
   backend: VoiceBackendType;
@@ -614,6 +680,20 @@ interface Voice31State {
 
   // Action library — contextual activity for BinaryAssistant animations
   assistantActivity: AssistantActivity;
+
+  // Upload + 3D Canvas
+  uploads: UploadedFile[];
+  uploadingFile: boolean;
+  activeCanvas: CanvasScene | null;
+
+  // Text chat / fallback mode
+  interactionMode: InteractionMode;
+  fallbackReason: FallbackReason;
+  fallbackAlertVisible: boolean;
+  fallbackAlertMessage: string;
+  chatMessages: ChatMessage[];
+  isChatProcessing: boolean;
+  ttsEnabled: boolean;
 }
 
 interface Voice31Actions {
@@ -839,6 +919,25 @@ interface Voice31Actions {
   // Action library
   setAssistantActivity: (activity: AssistantActivity) => void;
 
+  // Upload + 3D Canvas
+  addUpload: (file: UploadedFile) => void;
+  removeUpload: (id: string) => void;
+  updateUpload: (id: string, updates: Partial<UploadedFile>) => void;
+  setUploadingFile: (v: boolean) => void;
+  setActiveCanvas: (canvas: CanvasScene | null) => void;
+  addCanvasLayer: (layer: CanvasLayer) => void;
+  updateCanvasLayer: (layerId: string, updates: Partial<CanvasLayer>) => void;
+  removeCanvasLayer: (layerId: string) => void;
+
+  // Text chat / fallback mode
+  setInteractionMode: (mode: InteractionMode) => void;
+  setFallbackReason: (reason: FallbackReason) => void;
+  setFallbackAlert: (visible: boolean, message?: string) => void;
+  addChatMessage: (msg: Omit<ChatMessage, "id" | "timestamp">) => void;
+  clearChatMessages: () => void;
+  setChatProcessing: (processing: boolean) => void;
+  setTtsEnabled: (enabled: boolean) => void;
+
   // Reset
   reset: () => void;
 }
@@ -1032,6 +1131,16 @@ const DEFAULT_STATE: Voice31State = {
   weatherDisplay: DEFAULT_WEATHER_DISPLAY,
   browserAutomation: DEFAULT_BROWSER_AUTOMATION,
   assistantActivity: "idle" as AssistantActivity,
+  uploads: [],
+  uploadingFile: false,
+  activeCanvas: null,
+  interactionMode: "voice",
+  fallbackReason: null,
+  fallbackAlertVisible: false,
+  fallbackAlertMessage: "",
+  chatMessages: [],
+  isChatProcessing: false,
+  ttsEnabled: false,
 };
 
 // =============================================================================
@@ -2308,6 +2417,75 @@ export const useVoice31Store = create<Voice31Store>((set, get) => ({
   // Action library
   setAssistantActivity: (activity) => set({ assistantActivity: activity }),
 
+  // Upload + 3D Canvas
+  addUpload: (file) =>
+    set((state) => ({ uploads: [file, ...state.uploads] })),
+  removeUpload: (id) =>
+    set((state) => ({ uploads: state.uploads.filter((u) => u.id !== id) })),
+  updateUpload: (id, updates) =>
+    set((state) => ({
+      uploads: state.uploads.map((u) =>
+        u.id === id ? { ...u, ...updates } : u,
+      ),
+    })),
+  setUploadingFile: (v) => set({ uploadingFile: v }),
+  setActiveCanvas: (canvas) => set({ activeCanvas: canvas }),
+  addCanvasLayer: (layer) =>
+    set((state) => ({
+      activeCanvas: state.activeCanvas
+        ? {
+            ...state.activeCanvas,
+            layers: [...state.activeCanvas.layers, layer],
+            updatedAt: Date.now(),
+          }
+        : null,
+    })),
+  updateCanvasLayer: (layerId, updates) =>
+    set((state) => ({
+      activeCanvas: state.activeCanvas
+        ? {
+            ...state.activeCanvas,
+            layers: state.activeCanvas.layers.map((l) =>
+              l.id === layerId ? { ...l, ...updates } : l,
+            ),
+            updatedAt: Date.now(),
+          }
+        : null,
+    })),
+  removeCanvasLayer: (layerId) =>
+    set((state) => ({
+      activeCanvas: state.activeCanvas
+        ? {
+            ...state.activeCanvas,
+            layers: state.activeCanvas.layers.filter((l) => l.id !== layerId),
+            updatedAt: Date.now(),
+          }
+        : null,
+    })),
+
+  // Text chat / fallback mode
+  setInteractionMode: (mode) => set({ interactionMode: mode }),
+  setFallbackReason: (reason) => set({ fallbackReason: reason }),
+  setFallbackAlert: (visible, message) =>
+    set((state) => ({
+      fallbackAlertVisible: visible,
+      fallbackAlertMessage: message ?? state.fallbackAlertMessage,
+    })),
+  addChatMessage: (msg) => {
+    const id = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    set((state) => {
+      const newMessages = [
+        ...state.chatMessages,
+        { ...msg, id, timestamp: Date.now() },
+      ];
+      // Sliding window: keep last 40 messages in UI
+      return { chatMessages: newMessages.slice(-40) };
+    });
+  },
+  clearChatMessages: () => set({ chatMessages: [] }),
+  setChatProcessing: (processing) => set({ isChatProcessing: processing }),
+  setTtsEnabled: (enabled) => set({ ttsEnabled: enabled }),
+
   // Reset
   reset: () => set(DEFAULT_STATE),
 }));
@@ -2346,6 +2524,10 @@ if (typeof window !== "undefined") {
         delete config.enabledTools;
         localStorage.setItem("voice31_assistant_config", JSON.stringify(config));
         console.log("[Voice31Store] Migrated enabledTools → disabledTools");
+      }
+      // Ensure disabledTools exists (older save format may lack it)
+      if (!("disabledTools" in config)) {
+        config.disabledTools = [];
       }
       useVoice31Store.setState((state) => ({
         assistantSettings: {

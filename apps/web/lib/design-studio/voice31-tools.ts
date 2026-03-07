@@ -770,6 +770,65 @@ export const VOICE31_TOOLS = [
       required: ["question"],
     },
   },
+  // =============================================================================
+  // UPLOAD + 3D CANVAS TOOLS
+  // =============================================================================
+  {
+    name: "get_upload_context",
+    description:
+      "Get analysis of files uploaded by the user. Returns content type, analysis, and keywords for each uploaded file. Call this to see what the user has uploaded before processing.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: "process_upload",
+    description:
+      "Process an uploaded image through the smart AI pipeline. Automatically selects best models: upscales for quality, generates depth maps for 3D parallax, creates 3D meshes for architectural content. Returns processed URLs for visualization.",
+    parameters: {
+      type: "object",
+      properties: {
+        file_id: {
+          type: "string",
+          description: "ID of the uploaded file to process",
+        },
+        pipeline: {
+          type: "string",
+          enum: ["enhance", "depth_layers", "full_3d", "auto"],
+          description:
+            "Pipeline to use: enhance (upscale only), depth_layers (upscale + depth map), full_3d (upscale + depth + 3D mesh), auto (smart selection based on content type). Default: auto",
+        },
+      },
+      required: ["file_id"],
+    },
+  },
+  {
+    name: "build_3d_canvas",
+    description:
+      "Build or update a 3D layered canvas scene from processed uploads. Adds layers with depth, positions elements in 3D space. The canvas persists as a named artifact. Generates a live Three.js visualization in the code display.",
+    parameters: {
+      type: "object",
+      properties: {
+        scene_name: {
+          type: "string",
+          description: "Name for the canvas scene artifact",
+        },
+        layers: {
+          type: "string",
+          description:
+            'JSON array of layers: [{"file_id":"...","role":"foreground"|"background"|"overlay","depth":0.0-1.0}]',
+        },
+        camera_preset: {
+          type: "string",
+          enum: ["orbit", "push_in", "static", "drift"],
+          description: "Camera animation preset (default: orbit)",
+        },
+      },
+      required: ["scene_name", "layers"],
+    },
+  },
 ];
 
 // =============================================================================
@@ -834,6 +893,11 @@ BROWSER AUTOMATION:
 - browse_web: Open a REAL browser and perform actions on websites.
 - extract_web_data: Extract structured data from a webpage using AI.
 
+UPLOAD & 3D CANVAS:
+- get_upload_context: See what files the user has uploaded (analysis, content type, keywords).
+- process_upload: Run smart AI pipeline on an upload — auto-selects upscale, depth map, and/or 3D mesh generation based on content type.
+- build_3d_canvas: Build a 3D layered scene from processed uploads. Creates depth-displaced Three.js visualization with camera animation. Saves as a named artifact.
+
 CODE GENERATION:
 - generate_code_display: Generate CODED VISUALS — animations, UIs, charts, interactive art. This creates React components rendered live. Use for: animated graphics, data visualizations, UI mockups, interactive experiences, generative art, flyers/posters with complex layouts.
 - generate_visual_with_image: Combine AI image generation with styled code layouts.
@@ -860,6 +924,8 @@ SIMPLE RULE: If the user wants a PICTURE/PHOTO/IMAGE → show_image. If they wan
 8. Character creation → add_character_rig
 9. Canvas operations → add_to_canvas or generate_image_for_canvas
 10. Never announce tools, never ask permission, never discuss what you COULD do
+11. User uploads → call get_upload_context, then process_upload with auto pipeline, then build_3d_canvas to visualize
+12. "Make this 3D" / "visualize my upload" → process_upload + build_3d_canvas
 
 === COURSE CORRECTION ===
 

@@ -17,30 +17,55 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({ hex }) => {
   const toggleSettingsPanel = useVoice31Store((s) => s.toggleSettingsPanel);
   const setEditorVisible = useVoice31Store((s) => s.setEditorVisible);
   const bufferingState = useVoice31Store((s) => s.bufferingState);
+  const interactionMode = useVoice31Store((s) => s.interactionMode);
+  const fallbackReason = useVoice31Store((s) => s.fallbackReason);
 
   const activeTasks = bufferingState.pendingTasks.filter(
     (t) => t.status === 'running' || t.status === 'queued'
   );
+
+  // Mode-aware status label and color
+  const getStatusLabel = () => {
+    if (interactionMode === 'text' || interactionMode === 'fallback') {
+      if (fallbackReason && fallbackReason !== 'user_choice') {
+        return 'Text Mode (fallback)';
+      }
+      return 'Text Mode';
+    }
+    if (isConnected) return 'Voice Active';
+    return 'Ready';
+  };
+
+  const getStatusColor = () => {
+    if (interactionMode === 'fallback' && fallbackReason !== 'user_choice') {
+      return '#ff4444'; // red phosphor for fallback
+    }
+    if (interactionMode === 'text') {
+      return '#4488ff'; // blue for intentional text mode
+    }
+    if (isConnected) return '#33ff33'; // green for connected
+    return `${hex}60`; // dim for ready
+  };
 
   return (
     <div className="space-y-3">
       {/* Connection Status */}
       <div className="flex items-center gap-2">
         <Plugs size={14} style={{ color: hex }} />
-        <span className="text-xs font-mono" style={{ color: hex }}>
-          {isConnected ? 'Connected' : 'Disconnected'}
+        <span className="text-xs font-mono" style={{ color: getStatusColor() }}>
+          {getStatusLabel()}
         </span>
         <div
           className="w-2 h-2 rounded-full ml-auto"
           style={{
-            backgroundColor: isConnected ? '#33ff33' : '#ff4444',
-            boxShadow: isConnected ? '0 0 6px #33ff33' : '0 0 6px #ff4444',
+            backgroundColor: getStatusColor(),
+            boxShadow: `0 0 6px ${getStatusColor()}`,
           }}
         />
       </div>
 
       {/* Voice State */}
-      {isConnected && (
+      {isConnected && interactionMode === 'voice' && (
         <div className="flex items-center gap-2">
           {isSpeaking ? (
             <Waveform size={14} style={{ color: hex }} className="animate-pulse" />
@@ -65,8 +90,7 @@ export const StatusPanel: React.FC<StatusPanelProps> = ({ hex }) => {
           {config.name}
         </div>
         <div className="text-[10px] font-mono" style={{ color: `${hex}60` }}>
-          {config.voice.backend === 'elevenlabs' ? 'ElevenLabs' : 'Hume AI'} ·{' '}
-          {config.screenType.toUpperCase()}
+          {config.screenType.toUpperCase()} · {interactionMode === 'voice' ? 'VOICE' : 'TEXT'}
         </div>
       </div>
 

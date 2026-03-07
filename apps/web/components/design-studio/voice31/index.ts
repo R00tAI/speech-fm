@@ -9,7 +9,7 @@ export { Voice31Tab } from './Voice31Tab';
 export { Voice31Display } from './Voice31Display';
 export { Voice31Provider, useVoice31Context, VOICE26_CONFIG_ID } from './Voice31Provider';
 export { Voice31ElevenLabsProvider, useVoice31ElevenLabs, ELEVENLABS_AGENT_ID } from './Voice31ElevenLabsProvider';
-export { Voice31UnifiedProvider, Voice31BackendSwitcher, useVoice31Backend } from './Voice31UnifiedProvider';
+export { Voice31UnifiedProvider, useVoice31Backend } from './Voice31UnifiedProvider';
 export { Voice31Effects } from './Voice31Effects';
 export { Voice31Controls } from './Voice31Controls';
 export { Voice31UnifiedControls } from './Voice31UnifiedControls';
@@ -33,6 +33,9 @@ export type {
   PersonalityConfig,
   AssistantConfig,
   AssistantSettingsState,
+  InteractionMode,
+  FallbackReason,
+  ChatMessage,
 } from './Voice31Store';
 
 export { Voice31SidePanel } from './Voice31SidePanel';

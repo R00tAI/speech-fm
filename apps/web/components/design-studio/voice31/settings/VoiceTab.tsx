@@ -9,8 +9,9 @@ export const VoiceTab: React.FC<{ color: string }> = ({ color }) => {
   const config = assistantSettings.currentConfig.voice;
 
   const backends: SelectOption[] = [
-    { value: 'elevenlabs', label: 'ElevenLabs' },
-    { value: 'hume', label: 'Hume AI' },
+    { value: 'elevenlabs', label: 'Realtime Voice' },
+    { value: 'hume', label: 'Expressive Voice' },
+    { value: 'text', label: 'Text Chat' },
   ];
 
   return (
@@ -24,13 +25,13 @@ export const VoiceTab: React.FC<{ color: string }> = ({ color }) => {
           placeholder="Enter voice name" color={color} />
       </SettingRow>
       {config.backend === 'elevenlabs' && (
-        <SettingRow label="Agent ID" description="ElevenLabs agent ID" color={color}>
+        <SettingRow label="Agent ID" description="Voice agent ID" color={color}>
           <TextInput value={config.agentId || ''} onChange={(v) => updateVoiceConfig({ agentId: v })}
             placeholder="Enter agent ID" color={color} />
         </SettingRow>
       )}
       {config.backend === 'hume' && (
-        <SettingRow label="Config ID" description="Hume config ID" color={color}>
+        <SettingRow label="Config ID" description="Voice config ID" color={color}>
           <TextInput value={config.configId || ''} onChange={(v) => updateVoiceConfig({ configId: v })}
             placeholder="Enter config ID" color={color} />
         </SettingRow>

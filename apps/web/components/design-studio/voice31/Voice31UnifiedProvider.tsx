@@ -3,19 +3,21 @@
 /**
  * Voice31 Unified Provider
  *
- * Wrapper that allows switching between Hume and ElevenLabs providers.
- * Preserves all Voice31 functionality regardless of backend.
+ * Wrapper that allows switching between voice providers and text chat.
+ * Handles auto-fallback when voice services fail.
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { Voice31Provider as HumeProvider } from './Voice31Provider';
 import { Voice31ElevenLabsProvider } from './Voice31ElevenLabsProvider';
+import { Voice31TextProvider } from './Voice31TextProvider';
+import { useVoice31Store } from './Voice31Store';
 
 // =============================================================================
 // TYPES
 // =============================================================================
 
-export type VoiceBackend = 'hume' | 'elevenlabs';
+export type VoiceBackend = 'hume' | 'elevenlabs' | 'text';
 
 interface Voice31UnifiedContextType {
   backend: VoiceBackend;
@@ -52,7 +54,43 @@ export const Voice31UnifiedProvider: React.FC<Voice31UnifiedProviderProps> = ({
   const handleSetBackend = useCallback((newBackend: VoiceBackend) => {
     console.log('[Voice31] Switching backend to:', newBackend);
     setBackend(newBackend);
+
+    // Sync interaction mode with store
+    const store = useVoice31Store.getState();
+    if (newBackend === 'text') {
+      store.setInteractionMode('text');
+      store.setFallbackReason('user_choice');
+    } else {
+      store.setInteractionMode('voice');
+      store.setFallbackReason(null);
+      store.setFallbackAlert(false);
+    }
   }, []);
+
+  // Auto-fallback handler — called by ElevenLabs provider on failure
+  const handleFallback = useCallback((reason: string) => {
+    console.log('[Voice31] Auto-fallback triggered:', reason);
+    setBackend('text');
+
+    const store = useVoice31Store.getState();
+    store.setInteractionMode('fallback');
+    store.setFallbackReason(
+      reason === 'credits_exhausted'
+        ? 'credits_exhausted'
+        : reason === 'service_unavailable'
+          ? 'service_unavailable'
+          : 'api_error',
+    );
+    store.setFallbackAlert(true, reason);
+  }, []);
+
+  // Sync store voice.backend setting → provider backend
+  const storeBackend = useVoice31Store((s) => s.assistantSettings.currentConfig.voice.backend);
+  useEffect(() => {
+    if (storeBackend && storeBackend !== backend) {
+      handleSetBackend(storeBackend as VoiceBackend);
+    }
+  }, [storeBackend]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const contextValue: Voice31UnifiedContextType = {
     backend,
@@ -61,52 +99,19 @@ export const Voice31UnifiedProvider: React.FC<Voice31UnifiedProviderProps> = ({
 
   return (
     <Voice31UnifiedContext.Provider value={contextValue}>
-      {backend === 'hume' ? (
+      {backend === 'text' ? (
+        <Voice31TextProvider>{children}</Voice31TextProvider>
+      ) : backend === 'hume' ? (
         <HumeProvider>{children}</HumeProvider>
       ) : (
-        <Voice31ElevenLabsProvider agentId={elevenLabsAgentId}>
+        <Voice31ElevenLabsProvider
+          agentId={elevenLabsAgentId}
+          onFallback={handleFallback}
+        >
           {children}
         </Voice31ElevenLabsProvider>
       )}
     </Voice31UnifiedContext.Provider>
-  );
-};
-
-// =============================================================================
-// BACKEND SWITCHER COMPONENT
-// =============================================================================
-
-interface BackendSwitcherProps {
-  className?: string;
-}
-
-export const Voice31BackendSwitcher: React.FC<BackendSwitcherProps> = ({ className = '' }) => {
-  const { backend, setBackend } = useVoice31Backend();
-
-  return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <span className="text-xs text-white/50 font-mono">VOICE:</span>
-      <button
-        onClick={() => setBackend('hume')}
-        className={`px-2 py-1 text-xs font-mono rounded transition-colors ${
-          backend === 'hume'
-            ? 'bg-amber-500/30 text-amber-400 border border-amber-500/50'
-            : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
-        }`}
-      >
-        HUME
-      </button>
-      <button
-        onClick={() => setBackend('elevenlabs')}
-        className={`px-2 py-1 text-xs font-mono rounded transition-colors ${
-          backend === 'elevenlabs'
-            ? 'bg-amber-500/30 text-amber-400 border border-amber-500/50'
-            : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10'
-        }`}
-      >
-        ELEVEN
-      </button>
-    </div>
   );
 };
 
