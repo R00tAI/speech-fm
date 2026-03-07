@@ -15,14 +15,13 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { VoiceDisplayPro } from "@/components/design-studio/voice-display/CRTMonitorPro";
 import { WireframeObjectLayer } from "@/components/design-studio/voice-display/WireframeObjectLayer";
-import { CelestialCanvas } from "@/components/design-studio/voice26/Voice26AudioFX";
+// CelestialCanvas removed — replaced with LED grid pattern in AudioFX area
 import { AssistantMigrationEffect } from "./AssistantMigrationEffect";
 import { BinaryAssistant } from "./BinaryAssistant";
 // Decomposed display sub-components
 import {
   AmbientBackgroundLayer,
   ContentRenderer,
-  ControlBar,
   CRTScreenBoundary,
   FallbackAlert,
   getPhosphorColors,
@@ -31,6 +30,7 @@ import {
 } from "./display";
 // Visual Intelligence
 import { useVisualIntelligence } from "./hooks/useVisualIntelligence";
+import { useMediaPreRenderer } from "./hooks/useMediaPreRenderer";
 import { useStorytellingStore } from "./storytelling";
 import { Voice31AudioFX } from "./Voice31AudioFX";
 import { Voice31Effects } from "./Voice31Effects";
@@ -41,7 +41,7 @@ import { Voice31RPGCharacterCreator } from "./Voice31RPGCharacterCreator";
 // RPG Mode Components
 import { useVoice31RPG, Voice31RPGProvider } from "./Voice31RPGProvider";
 import { Voice31RPGSaveFile } from "./Voice31RPGSaveFile";
-import { Voice31RPGSidebar } from "./Voice31RPGSidebar";
+// Voice31RPGSidebar removed — RPG tabs now integrated into Voice31SidePanel
 import { useVoice31RPGStore } from "./Voice31RPGStore";
 import { Voice31SceneInspector } from "./Voice31SceneInspector";
 import { Voice31Settings } from "./Voice31Settings";
@@ -54,6 +54,18 @@ type ContentPosition = "left" | "right" | "center" | "top" | "bottom" | null;
 
 const FX_PANEL_HEIGHT = 100;
 const SIDEBAR_WIDTH = 280;
+
+/** Hook for responsive mobile detection */
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+};
 
 // Processing indicator — visible when assistant is thinking/working
 const ThinkingIndicator: React.FC<{ phosphorColor: string }> = ({ phosphorColor }) => {
@@ -140,6 +152,14 @@ const Voice31DisplayInner: React.FC = () => {
 
   // Visual Intelligence hook — monitors conversation and triggers ambient backgrounds
   useVisualIntelligence();
+
+  // Media pre-renderer — pre-generates images/depth maps for upcoming scenes
+  useMediaPreRenderer();
+
+  // Mobile responsive
+  const isMobile = useIsMobile();
+  const sidebarOpen = useVoice31Store((s) => s.sidebarOpen);
+  const toggleSidebar = useVoice31Store((s) => s.toggleSidebar);
 
   // RPG Mode state
   const rpgModeActive = useVoice31RPGStore((s) => s.rpgModeActive);
@@ -389,6 +409,8 @@ const Voice31DisplayInner: React.FC = () => {
       containerWidth: number,
       containerHeight: number,
     ) => {
+      const isMobile = containerWidth < 768;
+
       // In RPG mode, CRT fills all space — no constraint, no FX panel
       if (rpgModeActive) {
         return {
@@ -399,14 +421,16 @@ const Voice31DisplayInner: React.FC = () => {
 
       const availableHeight = containerHeight - FX_PANEL_HEIGHT - 16;
       const notesPanelWidth = memoryState.editorVisible ? 356 : 0;
-      const availableWidth =
-        containerWidth - 16 - notesPanelWidth - SIDEBAR_WIDTH;
+      // On mobile: no sidebar width subtraction, CRT fills width
+      const availableWidth = isMobile
+        ? containerWidth - 16
+        : containerWidth - 16 - notesPanelWidth - SIDEBAR_WIDTH;
 
-      // 'none' mode: fill available space (no aspect ratio constraint)
-      if (aspectRatioMode === "none") {
+      // Mobile: fill available space (no aspect ratio constraint)
+      if (isMobile || aspectRatioMode === "none") {
         return {
-          width: Math.floor(Math.max(360, availableWidth) / 2) * 2,
-          height: Math.floor(Math.max(203, availableHeight) / 2) * 2,
+          width: Math.floor(Math.max(300, availableWidth) / 2) * 2,
+          height: Math.floor(Math.max(200, availableHeight) / 2) * 2,
         };
       }
 
@@ -456,7 +480,10 @@ const Voice31DisplayInner: React.FC = () => {
     return (
       <div
         ref={containerRef}
-        className="relative w-full h-full flex bg-black overflow-hidden"
+        className="relative w-full h-full flex overflow-hidden"
+        style={{
+          background: 'radial-gradient(ellipse at 50% 40%, #0d0d0c 0%, #050504 50%, #020201 100%)',
+        }}
       >
         {/* CRT Screen — fills remaining space */}
         <div className="flex-1 relative flex flex-col min-w-0">
@@ -507,11 +534,17 @@ const Voice31DisplayInner: React.FC = () => {
           </CRTScreenBoundary>
         </div>
 
-        {/* Always-visible RPG Sidebar */}
-        {currentSaveFile && <Voice31RPGSidebar phosphorColor={phosphorColor} />}
-
-        {/* ControlBar - only RPG toggle + settings when in RPG mode */}
-        <ControlBar />
+        {/* Always-visible unified sidebar (shows RPG tabs when RPG mode is active) */}
+        <div
+          className="h-full border-l flex-shrink-0"
+          style={{
+            width: SIDEBAR_WIDTH,
+            borderColor: `${styledColors.glow}15`,
+            background: "linear-gradient(180deg, #0a0a0a 0%, #060606 100%)",
+          }}
+        >
+          <Voice31SidePanel />
+        </div>
 
         {/* Settings Panel Overlay */}
         <Voice31Settings />
@@ -591,10 +624,13 @@ const Voice31DisplayInner: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full flex bg-black overflow-hidden"
+      className="relative w-full h-full flex overflow-hidden"
+      style={{
+        background: 'radial-gradient(ellipse at 50% 40%, #0d0d0c 0%, #050504 50%, #020201 100%)',
+      }}
     >
       {/* Main area: CRT centered */}
-      <div className="flex-1 relative flex flex-col items-center justify-end overflow-hidden">
+      <div className="flex-1 relative flex flex-col items-center justify-center overflow-hidden">
         {/* Main CRT + Panel Assembly + optional Notes side panel */}
         <div
           className="relative flex items-end"
@@ -937,11 +973,14 @@ const Voice31DisplayInner: React.FC = () => {
                     "inset 0 1px 1px rgba(255,255,255,0.2), inset 0 -1px 1px rgba(0,0,0,0.5)",
                 }}
               />
-              <CelestialCanvas
-                width={size.width - 16}
-                height={FX_PANEL_HEIGHT - 8}
-                color="#8ab4ff"
-                intensity={0.6}
+              {/* Subtle LED grid pattern background */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  opacity: 0.04,
+                  backgroundImage: `radial-gradient(circle, ${styledColors.glow} 0.5px, transparent 0.5px)`,
+                  backgroundSize: '6px 6px',
+                }}
               />
               <Voice31AudioFX
                 embedded={true}
@@ -959,25 +998,79 @@ const Voice31DisplayInner: React.FC = () => {
           )}
         </div>
 
-        {/* Control bar (absolute positioned, not fixed) */}
-        <ControlBar />
+        {/* ControlBar removed — RPG toggle + settings now in sidebar icon rail */}
 
         {/* Settings Panel Overlay */}
         <Voice31Settings />
       </div>
       {/* end main CRT area */}
 
-      {/* Always-visible Sidebar */}
-      <div
-        className="h-full border-l flex-shrink-0"
-        style={{
-          width: SIDEBAR_WIDTH,
-          borderColor: `${styledColors.glow}15`,
-          background: "linear-gradient(180deg, #0a0a0a 0%, #060606 100%)",
-        }}
-      >
-        <Voice31SidePanel />
-      </div>
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <div
+          className="h-full border-l flex-shrink-0"
+          style={{
+            width: SIDEBAR_WIDTH,
+            borderColor: `${styledColors.glow}15`,
+            background: "linear-gradient(180deg, #0a0a0a 0%, #060606 100%)",
+          }}
+        >
+          <Voice31SidePanel />
+        </div>
+      )}
+
+      {/* Mobile: menu toggle button */}
+      {isMobile && (
+        <button
+          onClick={toggleSidebar}
+          className="fixed bottom-4 right-4 z-50 flex items-center justify-center w-12 h-12 rounded-full transition-all active:scale-95"
+          style={{
+            backgroundColor: `${styledColors.glow}20`,
+            border: `2px solid ${styledColors.glow}60`,
+            boxShadow: `0 0 20px ${styledColors.glow}30`,
+            color: styledColors.glow,
+          }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <rect x="3" y="4" width="14" height="1.5" rx="0.75" fill="currentColor" />
+            <rect x="3" y="9" width="14" height="1.5" rx="0.75" fill="currentColor" />
+            <rect x="3" y="14" width="14" height="1.5" rx="0.75" fill="currentColor" />
+          </svg>
+        </button>
+      )}
+
+      {/* Mobile: bottom-sheet sidebar overlay */}
+      {isMobile && sidebarOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40"
+            style={{ backgroundColor: 'rgba(0,0,0,0.6)' }}
+            onClick={toggleSidebar}
+          />
+          {/* Bottom sheet */}
+          <div
+            className="fixed bottom-0 left-0 right-0 z-50 rounded-t-2xl overflow-hidden"
+            style={{
+              maxHeight: '70vh',
+              background: 'linear-gradient(180deg, #0a0a0a 0%, #060606 100%)',
+              borderTop: `1px solid ${styledColors.glow}25`,
+              boxShadow: `0 -8px 40px rgba(0,0,0,0.6), 0 -2px 20px ${styledColors.glow}10`,
+            }}
+          >
+            {/* Drag handle */}
+            <div className="flex justify-center py-2">
+              <div
+                className="w-10 h-1 rounded-full"
+                style={{ backgroundColor: `${styledColors.glow}30` }}
+              />
+            </div>
+            <div style={{ maxHeight: 'calc(70vh - 20px)', overflowY: 'auto' }}>
+              <Voice31SidePanel />
+            </div>
+          </div>
+        </>
+      )}
 
       <style jsx>{`
         @keyframes waveBar {

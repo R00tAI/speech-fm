@@ -376,3 +376,32 @@ export const voice31_artifacts = pgTable(
 );
 
 export type Voice31Artifact = InferSelectModel<typeof voice31_artifacts>;
+
+// =============================================================================
+// VOICE31 UPLOADS (persistent file uploads)
+// =============================================================================
+
+export const voice31_uploads = pgTable(
+  "voice31_uploads",
+  {
+    id: uuid("id").primaryKey().notNull().defaultRandom(),
+    user_id: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    filename: varchar("filename", { length: 500 }).notNull(),
+    blob_url: text("blob_url").notNull(),
+    file_type: varchar("file_type", { length: 20 }).notNull(),
+    mime_type: varchar("mime_type", { length: 100 }).notNull(),
+    analysis: text("analysis"),
+    content_type: varchar("content_type", { length: 50 }),
+    keywords: text("keywords").notNull().default("[]"),
+    processed: text("processed"),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    user_idx: index("voice31_uploads_user_id_idx").on(table.user_id),
+    created_idx: index("voice31_uploads_created_at_idx").on(table.created_at),
+  })
+);
+
+export type Voice31Upload = InferSelectModel<typeof voice31_uploads>;

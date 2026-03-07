@@ -439,6 +439,23 @@ export interface BrowserAutomationState {
 }
 
 // =============================================================================
+// MEDIA PRE-RENDERING TYPES
+// =============================================================================
+
+export type PreRenderStatus = "queued" | "generating" | "ready" | "failed";
+
+export interface PreRenderedMedia {
+  id: string;
+  type: "image" | "depth_map" | "mesh";
+  url: string | null;
+  prompt: string;
+  status: PreRenderStatus;
+  requestedAt: number;
+  completedAt?: number;
+  metadata?: Record<string, unknown>;
+}
+
+// =============================================================================
 // PROGRESSIVE RENDERING & BUFFERING STATE
 // =============================================================================
 
@@ -694,6 +711,15 @@ interface Voice31State {
   chatMessages: ChatMessage[];
   isChatProcessing: boolean;
   ttsEnabled: boolean;
+
+  // Sidebar (mobile responsive)
+  sidebarOpen: boolean;
+
+  // Selected artifact (for displaying on CRT)
+  selectedArtifact: Artifact | null;
+
+  // Media pre-rendering cache
+  preRenderCache: Record<string, PreRenderedMedia>;
 }
 
 interface Voice31Actions {
@@ -938,6 +964,22 @@ interface Voice31Actions {
   setChatProcessing: (processing: boolean) => void;
   setTtsEnabled: (enabled: boolean) => void;
 
+  // Sidebar
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
+
+  // Artifact selection (display on CRT)
+  selectArtifact: (id: string | null) => void;
+
+  // Upload hydration from DB
+  hydrateUploadsFromDB: () => void;
+
+  // Media pre-rendering
+  requestPreRender: (prompt: string, type: PreRenderedMedia["type"]) => string;
+  updatePreRender: (id: string, updates: Partial<PreRenderedMedia>) => void;
+  getPreRenderedMedia: (prompt: string) => PreRenderedMedia | undefined;
+  clearPreRenderCache: () => void;
+
   // Reset
   reset: () => void;
 }
@@ -1141,6 +1183,9 @@ const DEFAULT_STATE: Voice31State = {
   chatMessages: [],
   isChatProcessing: false,
   ttsEnabled: false,
+  sidebarOpen: typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
+  selectedArtifact: null,
+  preRenderCache: {},
 };
 
 // =============================================================================
@@ -2486,6 +2531,132 @@ export const useVoice31Store = create<Voice31Store>((set, get) => ({
   setChatProcessing: (processing) => set({ isChatProcessing: processing }),
   setTtsEnabled: (enabled) => set({ ttsEnabled: enabled }),
 
+  // Sidebar
+  toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
+
+  // Artifact selection (display on CRT)
+  selectArtifact: (id) => {
+    if (!id) {
+      set({ selectedArtifact: null });
+      return;
+    }
+    const state = get();
+    const artifact = state.artifacts.find((a) => a.id === id);
+    if (!artifact) return;
+
+    set({ selectedArtifact: artifact });
+
+    // Route to appropriate display based on artifact type
+    const content = artifact.content;
+    switch (artifact.type) {
+      case "image_generation":
+        if (content?.url) state.showImage(content.url, content.prompt);
+        break;
+      case "code_generation":
+        if (content?.code) state.showCodeDisplay(content.code, content.language || "tsx", content.prompt);
+        break;
+      case "article":
+      case "browser_result":
+        if (content?.url && content?.content) {
+          state.showReaderContent({
+            title: artifact.title,
+            source: content.source || "",
+            url: content.url,
+            content: content.content,
+            textContent: content.textContent || content.content,
+            images: content.images || [],
+            wordCount: content.wordCount || 0,
+          });
+        }
+        break;
+      case "note":
+      case "document":
+        if (typeof content === "string") {
+          state.showText(content);
+        } else if (content?.content) {
+          state.showText(content.content);
+        }
+        break;
+      case "weather_snapshot":
+        if (content) state.setWeatherData(content);
+        break;
+      default:
+        // For any other type, try to display as text
+        if (artifact.preview) state.showText(artifact.preview);
+        break;
+    }
+  },
+
+  // Media pre-rendering
+  requestPreRender: (prompt, type) => {
+    const id = `prerender_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const entry: PreRenderedMedia = {
+      id,
+      type,
+      url: null,
+      prompt,
+      status: "queued",
+      requestedAt: Date.now(),
+    };
+    set((state) => ({
+      preRenderCache: { ...state.preRenderCache, [id]: entry },
+    }));
+    return id;
+  },
+  updatePreRender: (id, updates) => {
+    set((state) => {
+      const existing = state.preRenderCache[id];
+      if (!existing) return state;
+      return {
+        preRenderCache: {
+          ...state.preRenderCache,
+          [id]: { ...existing, ...updates },
+        },
+      };
+    });
+  },
+  getPreRenderedMedia: (prompt) => {
+    const cache = get().preRenderCache;
+    return Object.values(cache).find(
+      (m) => m.prompt === prompt && (m.status === "ready" || m.status === "generating"),
+    );
+  },
+  clearPreRenderCache: () => set({ preRenderCache: {} }),
+
+  // Upload hydration from DB
+  hydrateUploadsFromDB: () => {
+    fetch("/api/voice31/uploads")
+      .then((r) => {
+        if (r.status === 401) {
+          // Auth not ready — retry once after 2s
+          setTimeout(() => {
+            fetch("/api/voice31/uploads")
+              .then((r2) => (r2.ok ? r2.json() : null))
+              .then((data) => {
+                if (Array.isArray(data) && data.length > 0) {
+                  useVoice31Store.setState({ uploads: data });
+                  console.log(`[Voice31Store] Loaded ${data.length} uploads from DB (retry)`);
+                }
+              })
+              .catch(() => {});
+          }, 2000);
+          return null;
+        }
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          useVoice31Store.setState({ uploads: data });
+          console.log(`[Voice31Store] Loaded ${data.length} uploads from DB`);
+        }
+      })
+      .catch((err) => {
+        console.warn("[Voice31Store] Failed to hydrate uploads:", err);
+      });
+  },
+
   // Reset
   reset: () => set(DEFAULT_STATE),
 }));
@@ -2633,6 +2804,11 @@ if (typeof window !== "undefined") {
         );
       });
   }, 1500);
+
+  // Hydrate uploads from DB API
+  setTimeout(() => {
+    useVoice31Store.getState().hydrateUploadsFromDB();
+  }, 1200);
 }
 
 // =============================================================================

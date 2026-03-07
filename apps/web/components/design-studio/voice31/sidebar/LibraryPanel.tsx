@@ -65,6 +65,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({ hex }) => {
   const setSearch = useVoice31Store((s) => s.setArtifactSearch);
   const pinArtifact = useVoice31Store((s) => s.pinArtifact);
   const deleteArtifact = useVoice31Store((s) => s.deleteArtifact);
+  const selectArtifact = useVoice31Store((s) => s.selectArtifact);
 
   const filtered = useMemo(() => {
     let list = artifacts;
@@ -159,6 +160,7 @@ export const LibraryPanel: React.FC<LibraryPanelProps> = ({ hex }) => {
               key={artifact.id}
               className="group flex items-start gap-2 px-2 py-1.5 rounded cursor-pointer transition-all hover:bg-white/5"
               style={{ borderLeft: `2px solid ${artifact.pinned ? hex : `${hex}20`}` }}
+              onClick={() => selectArtifact(artifact.id)}
             >
               <Icon size={14} style={{ color: `${hex}60` }} className="mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">

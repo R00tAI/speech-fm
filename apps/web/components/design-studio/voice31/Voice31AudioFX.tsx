@@ -79,36 +79,7 @@ const DynamicWaveform: React.FC<DynamicWaveformProps> = ({
         return;
       }
 
-      // Draw glow layers
-      for (let bloom = 3; bloom >= 1; bloom--) {
-        ctx.beginPath();
-        ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
-
-        for (let i = 0; i < pathPoints.length - 1; i++) {
-          const p1 = pathPoints[i];
-          const p2 = pathPoints[i + 1];
-          const midX = (p1.x + p2.x) / 2;
-          const midY = (p1.y + p2.y) / 2;
-          ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
-        }
-        ctx.lineTo(pathPoints[pathPoints.length - 1].x, pathPoints[pathPoints.length - 1].y);
-
-        const bloomWidth = bloom * 4 + 2;
-        const bloomAlpha = (0.2 / bloom) * (0.3 + metrics.rms * 2);
-
-        ctx.strokeStyle = glowColor;
-        ctx.lineWidth = bloomWidth;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ctx.globalAlpha = bloomAlpha;
-        ctx.filter = `blur(${bloom * 2}px)`;
-        ctx.stroke();
-        ctx.filter = 'none';
-      }
-
-      ctx.globalAlpha = 1;
-
-      // Draw main line
+      // Single clean ink-pen stroke — no glow, no blur
       ctx.beginPath();
       ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
 
@@ -122,8 +93,10 @@ const DynamicWaveform: React.FC<DynamicWaveformProps> = ({
       ctx.lineTo(pathPoints[pathPoints.length - 1].x, pathPoints[pathPoints.length - 1].y);
 
       ctx.strokeStyle = baseColor;
-      ctx.lineWidth = 2 + metrics.rms * 2;
+      ctx.lineWidth = 1.5;
       ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.globalAlpha = 0.9;
       ctx.stroke();
 
       rafRef.current = requestAnimationFrame(render);
@@ -425,7 +398,7 @@ export const Voice31AudioFX: React.FC<{
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            opacity: 0.06,
+            opacity: 0.12,
             backgroundImage: `radial-gradient(circle, ${colors.base} 0.5px, transparent 0.5px)`,
             backgroundSize: '4px 4px',
           }}
@@ -705,9 +678,11 @@ export const Voice31AudioFX: React.FC<{
           </div>
         </div>
 
-        {/* Corner brackets */}
-        <div className="absolute bottom-1.5 left-1.5 w-3 h-3 border-l border-b opacity-30" style={{ borderColor: colors.glow }} />
-        <div className="absolute bottom-1.5 right-1.5 w-3 h-3 border-r border-b opacity-30" style={{ borderColor: colors.glow }} />
+        {/* Corner brackets — prominent */}
+        <div className="absolute top-1.5 left-1.5 w-3 h-3 border-l border-t opacity-40" style={{ borderColor: colors.glow }} />
+        <div className="absolute top-1.5 right-1.5 w-3 h-3 border-r border-t opacity-40" style={{ borderColor: colors.glow }} />
+        <div className="absolute bottom-1.5 left-1.5 w-3 h-3 border-l border-b opacity-40" style={{ borderColor: colors.glow }} />
+        <div className="absolute bottom-1.5 right-1.5 w-3 h-3 border-r border-b opacity-40" style={{ borderColor: colors.glow }} />
       </div>
     </div>
   );

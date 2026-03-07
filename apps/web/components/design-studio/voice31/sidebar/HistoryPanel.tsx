@@ -30,6 +30,7 @@ function timeAgo(ts: number): string {
 export const HistoryPanel: React.FC<HistoryPanelProps> = ({ hex }) => {
   const [subTab, setSubTab] = useState<HistorySubTab>('code');
   const artifacts = useVoice31Store((s) => s.artifacts);
+  const selectArtifact = useVoice31Store((s) => s.selectArtifact);
 
   const activeSubTab = SUB_TABS.find((t) => t.key === subTab)!;
 
@@ -80,6 +81,7 @@ export const HistoryPanel: React.FC<HistoryPanelProps> = ({ hex }) => {
             key={item.id}
             className="px-2 py-1.5 rounded cursor-pointer transition-all hover:bg-white/5"
             style={{ borderLeft: `2px solid ${hex}20` }}
+            onClick={() => selectArtifact(item.id)}
           >
             <div className="text-[11px] font-mono truncate" style={{ color: hex }}>
               {item.title}

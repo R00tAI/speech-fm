@@ -1,13 +1,15 @@
 /**
  * Voice31 Upload API
  * Handles file uploads (images, PDFs), stores to Vercel Blob,
- * and analyzes content with Claude vision for smart pipeline routing.
+ * analyzes content with Claude vision, and persists to DB.
  */
 
 import { auth } from "@/app/(auth)/auth";
 import { put } from "@vercel/blob";
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { voice31_uploads } from "@/lib/db/schema";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -123,8 +125,26 @@ export async function POST(request: NextRequest) {
       keywords = ["document", "pdf"];
     }
 
+    // Persist to database
+    let dbId: string | undefined;
+    try {
+      const [inserted] = await db.insert(voice31_uploads).values({
+        user_id: session.user.id,
+        filename: file.name,
+        blob_url: blob.url,
+        file_type: fileType,
+        mime_type: file.type,
+        analysis,
+        content_type: contentType,
+        keywords: JSON.stringify(keywords),
+      }).returning({ id: voice31_uploads.id });
+      dbId = inserted?.id;
+    } catch (dbErr) {
+      console.warn("[voice31/upload] DB persistence failed:", dbErr);
+    }
+
     const uploadedFile = {
-      id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      id: dbId || `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       filename: file.name,
       blobUrl: blob.url,
       fileType,
