@@ -400,7 +400,7 @@ export function createImageGenWorkflow(prompt: string, style: string = 'illustra
         maxRetries: 2,
         execute: async (ctx) => {
           ctx.reportProgress(0.1);
-          const response = await durableFetch('/api/voice-canvas/generate-media', {
+          const response = await durableFetch('/api/voice31/generate-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

@@ -127,20 +127,20 @@ export const StorytellingOrchestrator: React.FC<
         const signal = prerenderAbortRef.current?.signal;
         let imageUrl: string | undefined;
         if (needsImage) {
-          const res = await fetch("/api/voice-canvas/generate-media", {
+          const res = await fetch("/api/voice31/generate-image", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             signal,
             body: JSON.stringify({
               prompt: imagePrompt,
-              type: "illustration",
+              category: "scene",
               style: "illustration",
               forceSchnell: true,
             }),
           });
           if (res.ok) {
             const result = await res.json();
-            imageUrl = result.media?.[0]?.url;
+            imageUrl = result.media?.[0]?.url || result.image?.url;
           }
         }
 
@@ -160,7 +160,7 @@ export const StorytellingOrchestrator: React.FC<
           const attemptDepth = async (attempt: number): Promise<string | null> => {
             try {
               const depthRes = await fetch(
-                "/api/design-studio/depth-estimation",
+                "/api/voice31/depth-estimation",
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },

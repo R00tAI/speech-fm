@@ -209,65 +209,35 @@ function buildEnhancedScenePrompt(basePrompt: string, theme?: string): string {
 async function generateSceneBackground(prompt: string, theme?: string): Promise<string | null> {
   const enhancedPrompt = buildEnhancedScenePrompt(prompt, theme);
 
-  // Primary: use the RPG-specific generate-image endpoint
   try {
-    const response = await fetch('/api/pipelines/agency-orchestration/rpg/generate-image', {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    const response = await fetch('/api/voice31/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         category: 'scene',
         prompt: enhancedPrompt,
-        style: theme && THEME_PROMPT_MODIFIERS[theme] ? theme as any : 'fantasy',
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const url = data.image?.url || null;
-      if (url) {
-        console.log('[RPG] Scene background generated (rpg endpoint):', url.substring(0, 80));
-        return url;
-      } else {
-        console.error('[RPG] No image URL in RPG scene response:', data);
-      }
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[RPG] RPG scene generation failed:', response.status, errorData);
-    }
-  } catch (error) {
-    console.error('[RPG] RPG scene generation error, trying fallback:', error);
-  }
-
-  // Fallback: use the voice-canvas generate-media endpoint
-  try {
-    const response = await fetch('/api/voice-canvas/generate-media', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'image',
-        prompt: enhancedPrompt,
-        style: 'illustration',
-        saveToAccount: true,
+        style: theme && THEME_PROMPT_MODIFIERS[theme] ? theme : 'fantasy',
         forceSchnell: true,
-        context: {
-          source: 'voice31-rpg-scene',
-          sessionId: `rpg_scene_${Date.now()}`,
-        },
       }),
     });
 
+    clearTimeout(timeout);
+
     if (response.ok) {
       const data = await response.json();
-      const url = data.media?.[0]?.url || null;
+      const url = data.image?.url || data.media?.[0]?.url || null;
       if (url) {
-        console.log('[RPG] Scene background generated (fallback):', url.substring(0, 80));
-      } else {
-        console.error('[RPG] No image URL in fallback scene response:', data);
+        console.log('[RPG] Scene background generated:', url.substring(0, 80));
+        return url;
       }
-      return url;
+      console.error('[RPG] No image URL in scene response:', data);
     } else {
       const errorData = await response.json().catch(() => ({}));
-      console.error('[RPG] Fallback scene generation failed:', response.status, errorData);
+      console.error('[RPG] Scene generation failed:', response.status, errorData);
     }
   } catch (error) {
     console.error('[RPG] Failed to generate scene background:', error);
@@ -279,65 +249,35 @@ async function generateSceneBackground(prompt: string, theme?: string): Promise<
 async function generateNPCPortrait(prompt: string): Promise<string | null> {
   const portraitPrompt = `${prompt}, RPG character portrait, fantasy art style, head and shoulders, on white background, isolated, detailed face, expressive`;
 
-  // Primary: use the RPG-specific generate-image endpoint
   try {
-    const response = await fetch('/api/pipelines/agency-orchestration/rpg/generate-image', {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    const response = await fetch('/api/voice31/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         category: 'character',
         prompt: portraitPrompt,
         style: 'fantasy',
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const url = data.image?.url || null;
-      if (url) {
-        console.log('[RPG] NPC portrait generated (rpg endpoint):', url.substring(0, 80));
-        return url;
-      } else {
-        console.error('[RPG] No image URL in RPG portrait response:', data);
-      }
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[RPG] RPG portrait generation failed:', response.status, errorData);
-    }
-  } catch (error) {
-    console.error('[RPG] RPG portrait generation error, trying fallback:', error);
-  }
-
-  // Fallback: use the voice-canvas generate-media endpoint
-  try {
-    const response = await fetch('/api/voice-canvas/generate-media', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'image',
-        prompt: portraitPrompt,
-        style: 'illustration',
-        saveToAccount: true,
         forceSchnell: true,
-        context: {
-          source: 'voice31-rpg-npc',
-          sessionId: `rpg_npc_${Date.now()}`,
-        },
       }),
     });
 
+    clearTimeout(timeout);
+
     if (response.ok) {
       const data = await response.json();
-      const url = data.media?.[0]?.url || null;
+      const url = data.image?.url || data.media?.[0]?.url || null;
       if (url) {
-        console.log('[RPG] NPC portrait generated (fallback):', url.substring(0, 80));
-      } else {
-        console.error('[RPG] No image URL in fallback portrait response:', data);
+        console.log('[RPG] NPC portrait generated:', url.substring(0, 80));
+        return url;
       }
-      return url;
+      console.error('[RPG] No image URL in portrait response:', data);
     } else {
       const errorData = await response.json().catch(() => ({}));
-      console.error('[RPG] Fallback portrait generation failed:', response.status, errorData);
+      console.error('[RPG] Portrait generation failed:', response.status, errorData);
     }
   } catch (error) {
     console.error('[RPG] Failed to generate NPC portrait:', error);
@@ -349,7 +289,7 @@ async function generateNPCPortrait(prompt: string): Promise<string | null> {
 async function chainDepthEstimation(imageUrl: string): Promise<string | null> {
   try {
     console.log('[RPG] Chaining depth estimation for:', imageUrl.substring(0, 60));
-    const response = await fetch('/api/design-studio/depth-estimation', {
+    const response = await fetch('/api/voice31/depth-estimation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -758,6 +698,8 @@ export function createRPGToolHandler(): RPGToolCallHandler {
                   nameLC.includes(key) || (description && description.toLowerCase().includes(key))
                 )?.[1] || 'medium';
                 store.updateNPCDisplaySize(npcId, detectedSize);
+              }).catch((e) => {
+                console.warn('[RPGTools] Portrait generation failed for NPC:', npcId, e);
               });
             }
 

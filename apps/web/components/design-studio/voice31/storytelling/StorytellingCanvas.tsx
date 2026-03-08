@@ -81,31 +81,18 @@ export const StorytellingCanvas: React.FC<StorytellingCanvasProps> = ({
           justifyContent: 'center',
         }}
       >
-        {playerState === 'generating' && (
+        {(playerState === 'generating' || playerState === 'buffering') && (
           <div
             style={{
-              fontFamily: "'Inter', system-ui, sans-serif",
-              fontSize: 14,
-              color: 'rgba(255,255,255,0.4)',
-              letterSpacing: '0.1em',
-              textTransform: 'uppercase',
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255,255,255,0.3)',
+              animation: 'storyPulse 1.5s ease-in-out infinite',
             }}
-          >
-            Generating story...
-          </div>
+          />
         )}
-        {playerState === 'buffering' && (
-          <div
-            style={{
-              fontFamily: "'Inter', system-ui, sans-serif",
-              fontSize: 14,
-              color: 'rgba(255,255,255,0.4)',
-              letterSpacing: '0.1em',
-            }}
-          >
-            Buffering...
-          </div>
-        )}
+        <style>{`@keyframes storyPulse { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 0.6; transform: scale(1.2); } }`}</style>
       </div>
     );
   }

@@ -405,3 +405,29 @@ export const voice31_uploads = pgTable(
 );
 
 export type Voice31Upload = InferSelectModel<typeof voice31_uploads>;
+
+// =============================================================================
+// FAL API USAGE TRACKING
+// =============================================================================
+
+export const fal_api_usage = pgTable(
+  "fal_api_usage",
+  {
+    id: uuid("id").primaryKey().notNull().defaultRandom(),
+    user_id: varchar("user_id", { length: 255 }).notNull(),
+    model: varchar("model", { length: 100 }).notNull(),
+    operation: varchar("operation", { length: 100 }).notNull(),
+    input_params: text("input_params"),
+    cost_usd: decimal("cost_usd", { precision: 10, scale: 6 }),
+    units: integer("units").notNull().default(1),
+    duration_ms: integer("duration_ms"),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    user_idx: index("fal_api_usage_user_id_idx").on(table.user_id),
+    model_idx: index("fal_api_usage_model_idx").on(table.model),
+    created_idx: index("fal_api_usage_created_at_idx").on(table.created_at),
+  })
+);
+
+export type FalApiUsage = InferSelectModel<typeof fal_api_usage>;

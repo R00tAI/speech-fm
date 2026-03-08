@@ -44,17 +44,17 @@ export function useSceneBuffer() {
         return;
       }
 
-      // Staleness timeout: if stuck in buffering for 30s, force complete
+      // Staleness timeout: if stuck in buffering for 15s, force complete
       bufferTimeoutRef.current = setTimeout(() => {
         const state = useStorytellingStore.getState();
         if (state.playerState === 'buffering') {
-          console.warn('[SceneBuffer] Stuck in buffering for 30s — forcing complete');
+          console.warn('[SceneBuffer] Stuck in buffering for 15s — forcing complete');
           if (!state.generationComplete) {
             markGenerationComplete();
           }
           setPlayerState('complete');
         }
-      }, 30_000);
+      }, 15_000);
     }
 
     // When generating: check if first scene is ready to start playback

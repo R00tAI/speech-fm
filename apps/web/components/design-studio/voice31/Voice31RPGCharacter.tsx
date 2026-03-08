@@ -199,19 +199,13 @@ const NPCPortrait: React.FC<{
       >
         <div className="text-center">
           <div
-            className="text-7xl mb-2 font-mono"
+            className="text-7xl mb-2 font-mono animate-pulse"
             style={{
               color: `var(--phosphor-${phosphorColor}, #ffaa00)`,
               textShadow: `0 0 30px var(--phosphor-${phosphorColor}, #ffaa00)`,
             }}
           >
             {npc.name.charAt(0).toUpperCase()}
-          </div>
-          <div
-            className="text-xs font-mono opacity-40"
-            style={{ color: `var(--phosphor-${phosphorColor}, #ffaa00)` }}
-          >
-            [SUMMONING]
           </div>
         </div>
       </div>

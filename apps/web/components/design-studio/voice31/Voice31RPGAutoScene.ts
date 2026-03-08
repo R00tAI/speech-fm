@@ -98,45 +98,29 @@ async function generateBackground(description: string): Promise<void> {
   store.setBackgroundLoading(true);
 
   try {
-    // Use the RPG-specific generate-image endpoint
-    const response = await fetch('/api/pipelines/agency-orchestration/rpg/generate-image', {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    const response = await fetch('/api/voice31/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
       body: JSON.stringify({
         category: 'scene',
         prompt: `${description}, RPG scene, atmospheric, cinematic lighting, detailed background, wide angle`,
         style: theme,
-      }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const url = data.image?.url;
-      if (url) {
-        console.log('[RPGAutoScene] Background generated:', url.substring(0, 80));
-        store.updateSceneBackground(url);
-        return;
-      }
-    }
-
-    // Fallback endpoint
-    const fallbackRes = await fetch('/api/voice-canvas/generate-media', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'image',
-        prompt: `${description}, RPG scene, atmospheric, cinematic lighting, detailed background`,
-        style: 'illustration',
         forceSchnell: true,
       }),
     });
 
-    if (fallbackRes.ok) {
-      const fallbackData = await fallbackRes.json();
-      const fallbackUrl = fallbackData.media?.[0]?.url;
-      if (fallbackUrl) {
-        console.log('[RPGAutoScene] Background generated (fallback):', fallbackUrl.substring(0, 80));
-        store.updateSceneBackground(fallbackUrl);
+    clearTimeout(timeout);
+
+    if (response.ok) {
+      const data = await response.json();
+      const url = data.image?.url || data.media?.[0]?.url;
+      if (url) {
+        console.log('[RPGAutoScene] Background generated:', url.substring(0, 80));
+        store.updateSceneBackground(url);
       }
     }
   } catch (error) {

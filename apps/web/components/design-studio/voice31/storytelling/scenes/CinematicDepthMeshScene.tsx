@@ -72,16 +72,9 @@ export const CinematicDepthMeshScene: React.FC<SceneRendererProps> = ({
           style={{
             width: "100%",
             height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#555",
-            fontFamily: "monospace",
-            fontSize: 14,
+            backgroundColor: "#0a0a0a",
           }}
-        >
-          Generating depth mesh...
-        </div>
+        />
       </BackgroundRenderer>
     );
   }

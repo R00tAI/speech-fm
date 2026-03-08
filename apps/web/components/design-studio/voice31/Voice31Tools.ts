@@ -312,7 +312,7 @@ export function createVoice31ToolHandler(): ToolCallHandler {
           // Fire-and-forget with durable retry
           (async () => {
             try {
-              const response = await durableFetch('/api/voice-canvas/generate-media', {
+              const response = await durableFetch('/api/voice31/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -952,7 +952,7 @@ export function createVoice31ToolHandler(): ToolCallHandler {
           // Fire-and-forget: generate without blocking WebSocket
           (async () => {
             try {
-              const response = await fetch('/api/voice-canvas/generate-media', {
+              const response = await fetch('/api/voice31/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1102,7 +1102,7 @@ export function createVoice31ToolHandler(): ToolCallHandler {
           // Fire-and-forget: generate without blocking WebSocket
           (async () => {
             try {
-              const response = await fetch('/api/voice-canvas/generate-media', {
+              const response = await fetch('/api/voice31/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1396,7 +1396,7 @@ export function createVoice31ToolHandler(): ToolCallHandler {
           // Fire-and-forget: dual generation without blocking WebSocket
           (async () => {
             try {
-              const imageResponse = await fetch('/api/voice-canvas/generate-media', {
+              const imageResponse = await fetch('/api/voice31/generate-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

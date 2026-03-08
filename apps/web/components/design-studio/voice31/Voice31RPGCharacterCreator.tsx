@@ -747,7 +747,7 @@ export const Voice31RPGCharacterCreator: React.FC<Voice31RPGCharacterCreatorProp
       if (appearance) {
         try {
           const portraitPrompt = `RPG character portrait, ${RACES[race].name} ${CLASSES[playerClass].name}, ${appearance}, fantasy art style, head and shoulders`;
-          const response = await fetch('/api/voice-canvas/generate-media', {
+          const response = await fetch('/api/voice31/generate-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

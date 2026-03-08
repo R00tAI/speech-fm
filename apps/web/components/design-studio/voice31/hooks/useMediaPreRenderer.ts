@@ -101,20 +101,21 @@ export function useMediaPreRenderer() {
  */
 async function generateImage(prompt: string): Promise<string | null> {
   try {
-    const response = await fetch('/api/voice31/smart-pipeline', {
+    const response = await fetch('/api/voice31/generate-image', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'generate_image',
         prompt,
-        model: 'flux-schnell',
+        category: 'scene',
+        style: 'illustration',
+        forceSchnell: true,
       }),
     });
 
     if (!response.ok) return null;
 
     const data = await response.json();
-    return data.url || data.imageUrl || null;
+    return data.image?.url || data.media?.[0]?.url || null;
   } catch {
     return null;
   }
@@ -125,19 +126,19 @@ async function generateImage(prompt: string): Promise<string | null> {
  */
 async function generateDepthMap(imageUrl: string): Promise<string | null> {
   try {
-    const response = await fetch('/api/voice31/smart-pipeline', {
+    const response = await fetch('/api/voice31/depth-estimation', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        action: 'depth_map',
         imageUrl,
+        model: 'midas',
       }),
     });
 
     if (!response.ok) return null;
 
     const data = await response.json();
-    return data.url || data.depthMapUrl || null;
+    return data.depthMap?.url || null;
   } catch {
     return null;
   }

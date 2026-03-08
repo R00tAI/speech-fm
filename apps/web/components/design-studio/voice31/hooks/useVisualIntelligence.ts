@@ -103,7 +103,7 @@ export function useVisualIntelligence() {
     isFetchingRef.current = true;
     try {
       const prompt = buildFluxPrompt(keywords);
-      const res = await fetch('/api/voice-canvas/generate-media', {
+      const res = await fetch('/api/voice31/generate-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

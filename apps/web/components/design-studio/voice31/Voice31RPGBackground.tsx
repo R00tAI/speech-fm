@@ -503,12 +503,6 @@ export const Voice31RPGBackground: React.FC<Voice31RPGBackgroundProps> = ({
                 />
               ))}
             </div>
-            <span
-              className="font-mono text-[11px] uppercase tracking-wider opacity-50"
-              style={{ color: phosphorHex }}
-            >
-              {showLoadingIndicator ? 'Generating scene...' : 'Awaiting scene...'}
-            </span>
           </div>
         </div>
         <style jsx>{`

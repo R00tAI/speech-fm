@@ -163,7 +163,7 @@ async function estimateDepth(
   baseUrl: string,
 ): Promise<string | undefined> {
   try {
-    const res = await fetch(`${baseUrl}/api/design-studio/depth-estimation`, {
+    const res = await fetch(`${baseUrl}/api/voice31/depth-estimation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageUrl }),

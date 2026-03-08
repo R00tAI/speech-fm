@@ -115,17 +115,9 @@ export const CinematicFlatScene: React.FC<SceneRendererProps> = ({
         style={{
           width: "100%",
           height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           backgroundColor: "#0a0a0a",
-          color: "#555",
-          fontFamily: "monospace",
-          fontSize: 14,
         }}
-      >
-        Generating image...
-      </div>
+      />
     );
   }
 
