@@ -431,3 +431,29 @@ export const fal_api_usage = pgTable(
 );
 
 export type FalApiUsage = InferSelectModel<typeof fal_api_usage>;
+
+// ============================================================================
+// RPG Game Saves
+// ============================================================================
+
+export const rpg_game_saves = pgTable(
+  "rpg_game_saves",
+  {
+    id: uuid("id").primaryKey().notNull().defaultRandom(),
+    session_id: uuid("session_id").notNull(),
+    user_id: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    snapshot: text("snapshot").notNull(),
+    branch_path: text("branch_path").notNull().default("[]"),
+    parent_save_id: uuid("parent_save_id"),
+    created_at: timestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => ({
+    session_idx: index("rpg_saves_session_id_idx").on(table.session_id),
+    user_idx: index("rpg_saves_user_id_idx").on(table.user_id),
+    created_idx: index("rpg_saves_created_at_idx").on(table.created_at),
+  })
+);
+
+export type RpgGameSave = InferSelectModel<typeof rpg_game_saves>;
