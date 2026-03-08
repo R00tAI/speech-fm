@@ -1,11 +1,11 @@
 /**
  * Voice31 Upload API
- * Handles file uploads (images, PDFs), stores to Vercel Blob,
+ * Handles file uploads (images, PDFs), stores to FAL storage,
  * analyzes content with Claude vision, and persists to DB.
  */
 
 import { auth } from "@/app/(auth)/auth";
-import { put } from "@vercel/blob";
+import { fal } from "@fal-ai/client";
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
@@ -53,13 +53,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Upload to Vercel Blob
-    const ext = file.name.split(".").pop() || "bin";
-    const blobPath = `voice31-uploads/${session.user.id}/${Date.now()}.${ext}`;
-    const blob = await put(blobPath, file, {
-      access: "public",
-      contentType: file.type,
-    });
+    // Upload to FAL storage
+    const fileBlob = new Blob([await file.arrayBuffer()], { type: file.type });
+    const fileUrl = await fal.storage.upload(fileBlob);
 
     const fileType = file.type === "application/pdf" ? "pdf" : "image";
     let analysis: string | null = null;
@@ -70,10 +66,6 @@ export async function POST(request: NextRequest) {
     if (fileType === "image") {
       try {
         const anthropic = new Anthropic();
-        const mediaType = file.type as
-          | "image/jpeg"
-          | "image/png"
-          | "image/webp";
 
         const response = await anthropic.messages.create({
           model: "claude-sonnet-4-5-20250929",
@@ -84,7 +76,7 @@ export async function POST(request: NextRequest) {
               content: [
                 {
                   type: "image",
-                  source: { type: "url", url: blob.url },
+                  source: { type: "url", url: fileUrl },
                 },
                 {
                   type: "text",
@@ -131,7 +123,7 @@ export async function POST(request: NextRequest) {
       const [inserted] = await db.insert(voice31_uploads).values({
         user_id: session.user.id,
         filename: file.name,
-        blob_url: blob.url,
+        blob_url: fileUrl,
         file_type: fileType,
         mime_type: file.type,
         analysis,
@@ -146,7 +138,7 @@ export async function POST(request: NextRequest) {
     const uploadedFile = {
       id: dbId || `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       filename: file.name,
-      blobUrl: blob.url,
+      blobUrl: fileUrl,
       fileType,
       mimeType: file.type,
       analysis,
